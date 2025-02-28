@@ -1,0 +1,8 @@
+.env
+*.env
+*.p12
+*.key
+*.mobileprovision
+*.pem
+*.mobileprovision
+*.pem
