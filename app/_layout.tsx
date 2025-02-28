@@ -50,11 +50,10 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        {/* Corrected path for the NewsDetail route */}
-        <Stack.Screen name="Detail/NewsDetail" options={{ title: "Новости", headerTitleAlign: 'center', }} />
-        <Stack.Screen name="Detail/AnalysisDetail" options={{ title: "Подробный анализ", headerTitleAlign: 'center', }} />
-        <Stack.Screen name="Detail/OfferDetail" options={{ title: "Подробнее об акции", headerTitleAlign: 'center', }} />
-        <Stack.Screen name="Detail/OfferDetailScreen" options={{ title: 'Детали' }} />
+        <Stack.Screen name="Detail/NewsDetail" options={{ title: "Новости", headerTitleAlign: 'center' }} />
+        <Stack.Screen name="Detail/AnalysisDetail" options={{ title: "Подробный анализ", headerTitleAlign: 'center' }} />
+        <Stack.Screen name="Detail/OfferDetail" options={{ title: "Подробнее об акции", headerTitleAlign: 'center' }} />
+        <Stack.Screen name="Detail/AdminPanel" options={{ title: 'Админ панель' }} />
         <Stack.Screen name="Detail/VesselDetail" options={{ title: 'Подробнее' }} />
       </Stack>
     </ThemeProvider>

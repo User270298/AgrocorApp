@@ -1,81 +1,180 @@
 // app/components/NewsDetail.js
 import React from "react";
-import { View, Text, Image, StyleSheet, ScrollView , TouchableOpacity, Linking} from "react-native";
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Linking, SafeAreaView } from "react-native";
 import { useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 // import { URL_BASE } from '@env';
-const URL_BASE = "http://192.168.1.103:8000";
+const URL_BASE = "http://192.168.1.105:8000";
 
 export default function NewsDetail() {
   const route = useRoute(); // Получаем текущий маршрут
   const { title, description, image_url, price, author, date } = route.params; // Извлекаем параметры
   const fullImageUrl = image_url ? `${URL_BASE}${image_url}` : null;
+
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      <Image
-             source={
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        {/* Header Image */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={
               fullImageUrl
-                 ? { uri: fullImageUrl }
-                 : require("../../assets/images/image/BARLEY.png")
-             }
-             style={styles.image}
-           />
-      <Text style={styles.description}>{description}</Text>
-      <Text style={styles.date}>Цена: {price} $</Text>
-      <Text style={styles.date}>{date}</Text>
-      <TouchableOpacity
-              style={styles.button}
-              onPress={() => Linking.openURL(author)}
-            >
-              <Text style={styles.buttonText}>Подробнее</Text>
-            </TouchableOpacity>
-    </ScrollView>
+                ? { uri: fullImageUrl }
+                : require("../../assets/images/image/BARLEY.png")
+            }
+            style={styles.image}
+          />
+          <View style={styles.overlay} />
+          <Text style={styles.title}>{title}</Text>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Price Card */}
+          <View style={styles.priceCard}>
+            <Text style={styles.priceLabel}>Цена</Text>
+            <Text style={styles.priceValue}>{price} $</Text>
+          </View>
+
+          {/* Description */}
+          <View style={styles.descriptionContainer}>
+            <Text style={styles.descriptionTitle}>Описание</Text>
+            <Text style={styles.description}>{description}</Text>
+          </View>
+
+          {/* Date */}
+          <View style={styles.dateContainer}>
+            <Ionicons name="calendar-outline" size={20} color="#666" />
+            <Text style={styles.date}>{date}</Text>
+          </View>
+
+          {/* Contact Button */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => Linking.openURL(author)}
+          >
+            <Ionicons name="mail-outline" size={24} color="white" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Связаться</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8f2e9",
-    padding: 20,
+    backgroundColor: '#fff',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  imageContainer: {
+    position: 'relative',
+    height: 300,
   },
   image: {
-    width: "100%",
-    height: '130%',
-    resizeMode: "cover",
-    marginBottom: 20,
-    borderRadius: 5,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   title: {
-    textAlign: 'center',
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2e7d32",
-    marginVertical: 25,
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
   },
-  date: {
-    fontSize: 16,
-    color: "#757575",
-    marginVertical: 10,
+  content: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -30,
+  },
+  priceCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  priceValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+  },
+  descriptionContainer: {
+    marginBottom: 20,
+  },
+  descriptionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
   },
   description: {
     fontSize: 16,
-    color: "#424242",
+    lineHeight: 24,
+    color: '#666',
   },
-  button: { 
-    backgroundColor: "#4CAF50",  // Зеленый фон для кнопки
-    paddingVertical: 15,  // Вертикальные отступы
-    paddingHorizontal: 20,  // Горизонтальные отступы
-    borderRadius: 30,  // Скругленные углы для кнопки
-    alignItems: "center",  // Выравнивание текста по центру
-    marginTop: 20,  // Отступ сверху
-    elevation: 5,  // Тень для кнопки
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  buttonText: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    color: "white",  // Белый текст
+  date: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 8,
+  },
+  button: {
+    backgroundColor: '#2e7d32',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });
 

@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet, ActivityIndicator, Text } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Card } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { AnimatedMessage } from '../../components/AnimatedMessage';
 import { useMessages } from '../../hooks/useMessages';
 import { theme } from '../../constants/theme';
@@ -60,12 +60,12 @@ export default function Assistant() {
     <View style={styles.container}>
       {!isOnline && (
         <Card style={styles.offlineCard} elevation="sm">
-          <Card.Content style={styles.offlineContent}>
+          <CardContent style={styles.offlineContent}>
             <Ionicons name="cloud-offline" size={20} color={theme.colors.warning.main} />
             <Text style={styles.offlineText}>
               Нет подключения к интернету. Сообщения будут отправлены при восстановлении соединения.
             </Text>
-          </Card.Content>
+          </CardContent>
         </Card>
       )}
 
@@ -80,10 +80,10 @@ export default function Assistant() {
 
       {isLoading && (
         <Card style={styles.loadingCard} elevation="sm">
-          <Card.Content style={styles.loadingContent}>
+          <CardContent style={styles.loadingContent}>
             <ActivityIndicator size="small" color={theme.colors.primary.main} />
             <Text style={styles.loadingText}>Ассистент ищет ответ...</Text>
-          </Card.Content>
+          </CardContent>
         </Card>
       )}
 

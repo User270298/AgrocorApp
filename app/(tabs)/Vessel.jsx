@@ -6,32 +6,29 @@ import {
   TouchableOpacity,
   Modal,
   SafeAreaView,
-  TextInput,
   ScrollView,
-  Image,
   Alert,
   Dimensions,
   FlatList,
+  RefreshControl,
 } from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
-// import { URL_BASE } from "@env";
+import { VesselNewsCard } from "../../components/VesselNewsCard";
+import { VesselForm } from "../../components/VesselForm";
+import { theme } from "../../theme";
 
-// const URL_BASE = "http://192.168.1.104:8000";
-// const URL_BASE=URL_BASE
 const URL_BASE = "http://192.168.1.103:8000";
-
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function Vessel() {
   const [isModalVisible, setModalVisible] = useState(false);
-
   const [postType, setPostType] = useState("cargo"); // Выбор между cargo и vessel
   const [postData, setPostData] = useState({});
   const [posts, setPosts] = useState([]);
   const [news, setNews] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const router = useRouter();
-  const bestOffers = news;
 
   const fetchNews = async () => {
     try {
@@ -51,6 +48,12 @@ export default function Vessel() {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchNews(), fetchPosts()]);
+    setIsRefreshing(false);
+  };
+
   function formatDate(dateString) {
     if (!dateString) return ""; // Обрабатываем случай, если dateString отсутствует
   
@@ -64,36 +67,6 @@ export default function Vessel() {
     return `${day}.${month}.${year} ${hours}:${minutes}`;
   }
   
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.carouselItem}
-      onPress={() => {
-        router.push({
-          pathname: "/Detail/VesselDetail",
-          params: { ...item },
-        });
-      }}
-    >
-      <Image
-        source={
-          item.image_url
-            ? {
-                uri: `${URL_BASE}/static/vessel_catcher/${item.image_url.split("/").pop()}`,
-              }
-            : require("../../assets/images/image/BARLEY.png") // Фallback изображение
-        }
-        style={styles.carouselImage}
-      />
-      <Text style={styles.carouselTitle}>{item.title || 'Заголовок'}</Text>
-      <Text style={styles.newsDate}>{formatDate(item.date)}</Text>
-    </TouchableOpacity>
-  );
-
-  useEffect(() => {
-    fetchNews();
-    fetchPosts();
-  }, []);
-
   const handleAddPost = async () => {
     const requiredFields =
       postType === "cargo"
@@ -132,23 +105,77 @@ export default function Vessel() {
     }
   };
 
+  useEffect(() => {
+    fetchNews();
+    fetchPosts();
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Vessel Catcher</Text>
-      </View>
-      
-      <View style={styles.carouselContainer}>
-        <Text style={styles.sectionTitle}>Новости Vessel Catcher</Text>
-        <FlatList
-          data={news}
-          renderItem={renderItem}
-          keyExtractor={(item, index) => index.toString()}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.newsContainer}
-        />
-      </View>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerText}>Vessel Catcher</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text style={styles.addButtonText}>+ Добавить</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Новости Vessel Catcher</Text>
+          <FlatList
+            data={news}
+            renderItem={({ item }) => (
+              <VesselNewsCard
+                title={item.title || 'Заголовок'}
+                date={formatDate(item.date)}
+                imageUrl={
+                  item.image_url
+                    ? `${URL_BASE}/static/vessel_catcher/${item.image_url.split('/').pop()}`
+                    : undefined
+                }
+                defaultImage={require('../../assets/images/image/BARLEY.png')}
+                onPress={() => {
+                  router.push({
+                    pathname: '/Detail/VesselDetail',
+                    params: { ...item },
+                  });
+                }}
+              />
+            )}
+            keyExtractor={(item, index) => index.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.newsContainer}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Последние предложения</Text>
+          {posts.map((post, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.postCard}
+              onPress={() => {
+                router.push({
+                  pathname: '/Detail/VesselDetail',
+                  params: { ...post },
+                });
+              }}
+            >
+              <Text style={styles.postTitle}>{post.title || 'Без названия'}</Text>
+              <Text style={styles.postDate}>{formatDate(post.date)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
 
       <Modal
         visible={isModalVisible}
@@ -157,147 +184,21 @@ export default function Vessel() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Добавить {postType === "cargo" ? "Cargo" : "Vessel"}
-            </Text>
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  postType === "cargo" && styles.selectedButton,
-                ]}
-                onPress={() => setPostType("cargo")}
-              >
-                <Text style={styles.toggleButtonText}>Cargo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  postType === "vessel" && styles.selectedButton,
-                ]}
-                onPress={() => setPostType("vessel")}
-              >
-                <Text style={styles.toggleButtonText}>Vessel</Text>
-              </TouchableOpacity>
-            </View>
-
-            {postType === "cargo" ? (
-              <>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Date at (YYYY-MM-DD)"
-                  value={postData.date_at || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, date_at: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Cargo"
-                  value={postData.cargo || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, cargo: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Quantity"
-                  value={postData.quantity || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, quantity: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Port of Loading"
-                  value={postData.port_loading || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, port_loading: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Port of Discharge"
-                  value={postData.port_discharge || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, port_discharge: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Rates"
-                  value={postData.rates || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, rates: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Laycan Dates"
-                  value={postData.laycan || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, laycan: text }))
-                  }
-                />
-              </>
-            ) : (
-              <>
-                <TextInput
-                  style={styles.input}
-                  placeholder="DWT"
-                  value={postData.dwt || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, dwt: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="BLT"
-                  value={postData.blt || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, blt: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Flag"
-                  value={postData.flag || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, flag: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Open at"
-                  value={postData.open_at || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, open_at: text }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Availability"
-                  value={postData.availability || ""}
-                  onChangeText={(text) =>
-                    setPostData((prev) => ({ ...prev, availability: text }))
-                  }
-                />
-              </>
-            )}
+          <ScrollView style={styles.modalScrollView}>
+            <VesselForm
+              postType={postType}
+              postData={postData}
+              onChangePostData={setPostData}
+              onSubmit={handleAddPost}
+              onToggleType={setPostType}
+            />
             <TouchableOpacity
-              style={styles.modalButton}
-              onPress={handleAddPost}
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.modalButtonText}>Добавить</Text>
+              <Text style={styles.closeButtonText}>Закрыть</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => setModalVisible(null)}
-            >
-              <Text style={styles.buttonText}>Назад</Text>
-            </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -305,182 +206,85 @@ export default function Vessel() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#e9f5e9" 
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
   },
-  header: { 
-    alignItems: "center", 
-    marginVertical: 26 
+  scrollView: {
+    flex: 1,
   },
-  headerText: { 
-    fontSize: 30, 
-    fontWeight: "bold", 
-    color: "#2a7b3d" 
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: theme.colors.backgroundSecondary,
   },
-  buttonGroup: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  toggleButton: {
-    padding: 10,
-    marginHorizontal: 5,
-    borderWidth: 1,
-    borderColor: "#2a7b3d",
-    borderRadius: 5,
-    width: 100,
-    alignItems: "center",
-    backgroundColor: "#93dba3",
-  },
-  selectedButton: {
-    backgroundColor: "#2a7b3d",
-  },
-  toggleButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+  headerText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   addButton: {
-    backgroundColor: "#2a7b3d",
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 15,
-    alignSelf: "center",
-    width: 250,
-    alignItems: "center",
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.lg,
   },
-  addButtonText: { color: "#fff", fontWeight: "bold" },
+  addButtonText: {
+    color: theme.colors.white,
+    fontWeight: '600',
+  },
+  section: {
+    padding: 16,
+  },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#2a7b3d",
-    marginBottom: 15,
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 16,
   },
   newsContainer: {
-    paddingHorizontal: 10,
+    paddingRight: 16,
   },
-  carouselContainer: {
-    marginVertical: 20,
+  postCard: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    padding: 16,
+    borderRadius: theme.borderRadius.lg,
+    marginBottom: 12,
   },
-  carouselItem: {
-    width: screenWidth * 0.7,
-    marginHorizontal: 10,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  carouselImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  carouselTitle: {
+  postTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
   },
-  newsDate: {
+  postDate: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
-  post: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginVertical: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  postType: { fontWeight: "bold", marginBottom: 5, color: "#2a7b3d" },
-  adminActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  approveButton: {
-    backgroundColor: "#38b34a",
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    marginHorizontal: 5,
-    alignItems: "center",
-  },
-  rejectButton: {
-    backgroundColor: "#ff5252",
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    marginHorizontal: 5,
-    alignItems: "center",
-  },
-  buttonText: { color: "#fff", fontWeight: "bold", textAlign: "center" },
   modalContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    width: "90%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  modalScrollView: {
+    backgroundColor: theme.colors.background,
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    padding: 16,
+    maxHeight: '80%',
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
-    color: "#2a7b3d",
-    textAlign: "center",
+  closeButton: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    padding: 16,
+    borderRadius: theme.borderRadius.lg,
+    alignItems: 'center',
+    marginTop: 16,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-  },
-  modalButton: {
-    backgroundColor: "#2a7b3d",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 50,
-    alignItems: "center",
-    marginTop: 8,
-    alignSelf: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    width: "70%",
-  },
-  modalButtonText: { color: "#fff", fontWeight: "bold" },
-  backButton: {
-    backgroundColor: "red",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 50,
-    alignItems: "center",
-    marginTop: 8,
-    alignSelf: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    width: "70%",
+  closeButtonText: {
+    color: theme.colors.text,
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

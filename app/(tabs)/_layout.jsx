@@ -11,7 +11,7 @@ export default function Layout() {
           title: 'Главная',
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
         }}
-      />
+      /> 
       <Tabs.Screen
         name="Vessel"
         options={{

@@ -9,8 +9,14 @@ import {
   Alert,
   Image,
   ScrollView,
+  ActivityIndicator,
+  Dimensions,
+  Platform,
 } from "react-native";
 import axios from "axios";
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 // import { URL_BASE } from "@env";
 const URL_BASE = "http://192.168.1.103:8000";
 import { Picker } from "@react-native-picker/picker";
@@ -18,8 +24,11 @@ import { Picker } from "@react-native-picker/picker";
 console.log("Base URL:", URL_BASE);
 
 // const URL_BASE = "http://192.168.1.104:8000";
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function AdminPanel() {
   const [modalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [news, setNews] = useState({ title: "", content: "", image_url: "" });
   const [best, setBest] = useState({
     title: "",
@@ -168,54 +177,178 @@ export default function AdminPanel() {
   };
 
   const handleAdd = async (data, endpoint, resetCallback) => {
-    if (endpoint === "offers" && data.price) {
-      data.price = parseFloat(data.price);
-    }
-
-    if (Object.values(data).some((field) => !field)) {
-      Alert.alert("Validation Error", "Обязательно заполнение всех полей.");
-      console.log("Поля, которые отсутствуют:", data);
+    if (!validateFields(data)) {
       return;
     }
 
+    setLoading(true);
     try {
-      console.log("Отправляемые данные:", data);
+      if (endpoint === "offers" && data.price) {
+        data.price = parseFloat(data.price);
+      }
+
       await axios.post(`${URL_BASE}/${endpoint}`, data, {
         headers: { "Content-Type": "application/json" },
       });
-      Alert.alert("Success", `${endpoint} добавлено успешно`);
-      resetCallback();
-      setModalVisible(null);
+      
+      Alert.alert(
+        "Успешно", 
+        `${getEndpointTitle(endpoint)} успешно добавлен(а)`,
+        [{ text: "OK", onPress: () => {
+          resetCallback();
+          setModalVisible(null);
+        }}]
+      );
     } catch (error) {
-      console.log("Отправляемые данные:", data);
-      console.error("Ошибка ответа API:", error.response?.data);
-      Alert.alert("Error", "Произошла ошибка при добавлении.");
+      console.error("API Error:", error.response?.data);
+      Alert.alert(
+        "Ошибка",
+        `Не удалось добавить ${getEndpointTitle(endpoint).toLowerCase()}. Попробуйте еще раз.`
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderImagePicker = (images, setStateCallback) => {
-    if (!Array.isArray(images) || images.length === 0) {
-      return <Text>Нет доступных изображений</Text>;
+  const validateFields = (data) => {
+    const emptyFields = Object.entries(data)
+      .filter(([key, value]) => !value && key !== 'image_url')
+      .map(([key]) => key);
+
+    if (emptyFields.length > 0) {
+      Alert.alert(
+        "Ошибка валидации",
+        `Пожалуйста, заполните следующие поля:\n${emptyFields.join('\n')}`
+      );
+      return false;
     }
+    return true;
+  };
+
+  const getEndpointTitle = (endpoint) => {
+    const titles = {
+      news: "Новость",
+      best: "Предложение",
+      analysis: "Анализ",
+      catcher: "Vessel Catcher",
+      offers: "Предложение",
+      requests: "Запрос"
+    };
+    return titles[endpoint] || endpoint;
+  };
+
+  const renderField = (field, value, onChange, config) => {
+    const fieldLabels = {
+      title: "Заголовок",
+      content: "Содержание",
+      description: "Описание",
+      price: "Цена",
+      crop_name: "Название культуры",
+      quantity: "Количество",
+      port: "Порт",
+      shipment_period: "Период поставки",
+      seller: "Продавец",
+      bayer: "Покупатель",
+      country: "Страна"
+    };
 
     return (
-      <View style={styles.imageGridContainer}>
-        {images.map((imageUrl, index) => (
+      <View style={styles.fieldContainer} key={field}>
+        <Text style={styles.fieldLabel}>{fieldLabels[field] || field}</Text>
+        <TextInput
+          style={[
+            styles.input,
+            field === 'content' || field === 'description' ? styles.multilineInput : null
+          ]}
+          placeholder={`Введите ${fieldLabels[field].toLowerCase()}`}
+          value={value}
+          onChangeText={onChange}
+          multiline={field === 'content' || field === 'description'}
+          numberOfLines={field === 'content' || field === 'description' ? 4 : 1}
+          keyboardType={field === 'price' ? 'numeric' : 'default'}
+        />
+      </View>
+    );
+  };
+
+  const pickImage = async (category) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        const newFileName = `${Date.now()}.jpg`;
+        const destFolder = `${FileSystem.documentDirectory}assets/images/${category}/`;
+        
+        // Создаем директорию, если она не существует
+        await FileSystem.makeDirectoryAsync(destFolder, { intermediates: true });
+        
+        // Копируем файл
+        const newUri = destFolder + newFileName;
+        await FileSystem.copyAsync({
+          from: result.assets[0].uri,
+          to: newUri
+        });
+
+        // Обновляем состояние в зависимости от категории
+        const imageUrl = `/assets/images/${category}/${newFileName}`;
+        switch(category) {
+          case 'news_image':
+            setNewsImages([...newsImages, imageUrl]);
+            break;
+          case 'analysis_image':
+            setAnalysisImages([...analysisImages, imageUrl]);
+            break;
+          case 'vessel_image':
+            setVesselImages([...vesselImages, imageUrl]);
+            break;
+          case 'image':
+            setOfferImages([...offerImages, imageUrl]);
+            setBestImages([...bestImages, imageUrl]);
+            break;
+        }
+
+        Alert.alert("Успешно", "Изображение загружено");
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Ошибка", "Не удалось загрузить изображение");
+    }
+  };
+
+  const renderImageSection = (images, setStateCallback, category) => {
+    return (
+      <View style={styles.imageSection}>
+        <View style={styles.imageSectionHeader}>
+          <Text style={styles.sectionTitle}>Выберите изображение</Text>
           <TouchableOpacity
-            key={index}
-            onPress={() =>
-              setStateCallback((prevState) => ({
-                ...prevState,
-                image_url: imageUrl,
-              }))
-            }
+            style={styles.uploadButton}
+            onPress={() => pickImage(category)}
           >
-            <Image
-              source={{ uri: `${URL_BASE}${imageUrl}` }}
-              style={styles.thumbnail}
-            />
+            <Ionicons name="cloud-upload-outline" size={24} color="#fff" />
+            <Text style={styles.uploadButtonText}>Загрузить</Text>
           </TouchableOpacity>
-        ))}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.imageGridContainer}>
+            {images.map((imageUrl, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => selectImage(imageUrl, setStateCallback)}
+                style={styles.thumbnailContainer}
+              >
+                <Image
+                  source={{ uri: `${FileSystem.documentDirectory}${imageUrl.substring(1)}` }}
+                  style={styles.thumbnail}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
       </View>
     );
   };
@@ -227,7 +360,7 @@ export default function AdminPanel() {
         setState: setNews,
         endpoint: "news",
         reset: () => setNews({ title: "", content: "", image_url: "" }),
-        additionalRender: () => renderImagePicker(newsImages, setNews),
+        additionalRender: () => renderImageSection(newsImages, setNews, "news_image"),
       },
       best: {
         state: best,
@@ -241,28 +374,26 @@ export default function AdminPanel() {
             image_url: "",
             author: authors[0].whatsapp,
           }),
-        additionalRender: () => {
-          return (
-            <>
-              {renderAuthorPicker(config.setState, config.state.author)}
-              {renderImagePicker(bestImages, setBest)}
-            </>
-          );
-        },
+        additionalRender: () => (
+          <>
+            {renderAuthorPicker(setBest, best.author)}
+            {renderImageSection(bestImages, setBest, "image")}
+          </>
+        ),
       },
       analysis: {
         state: analysis,
         setState: setAnalysis,
         endpoint: "analysis",
         reset: () => setAnalysis({ title: "", content: "", image_url: "" }),
-        additionalRender: () => renderImagePicker(analysisImages, setAnalysis),
+        additionalRender: () => renderImageSection(analysisImages, setAnalysis, "analysis_image"),
       },
       catcher: {
         state: catcher,
         setState: setCatcher,
         endpoint: "catcher",
         reset: () => setCatcher({ title: "", description: "", image_url: "" }),
-        additionalRender: () => renderImagePicker(vesselImages, setCatcher),
+        additionalRender: () => renderImageSection(vesselImages, setCatcher, "vessel_image"),
       },
       offers: {
         state: offers,
@@ -285,7 +416,7 @@ export default function AdminPanel() {
             <>
               {renderAuthorPicker(config.setState, config.state.author)}
               {renderPicker(config.setState, categories, config.state.second_tag, "second_tag")}
-              {renderImagePicker(offerImages, setOffers)}
+              {renderImageSection(offerImages, setOffers, "image")}
             </>
           );
         },
@@ -311,7 +442,7 @@ export default function AdminPanel() {
             <>
               {renderAuthorPicker(config.setState, config.state.author)}
               {renderPicker(config.setState, categories, config.state.second_tag, "second_tag")}
-              {renderImagePicker(offerImages, setRequests)}
+              {renderImageSection(offerImages, setRequests, "image")}
             </>
           );
         },
@@ -319,103 +450,126 @@ export default function AdminPanel() {
     };
 
     const config = modalConfig[modalVisible];
-  if (!config) return null;
+    if (!config) return null;
 
-  return (
-    <View style={styles.modalContent}>
-      <ScrollView nestedScrollEnabled={true}>
-        <Text style={styles.modalHeader}>Добавить</Text>
-        {Object.keys(config.state).map((field) =>
-          field !== "image_url" &&
-          field !== "author" &&
-          field !== "second_tag" ? (
-            <TextInput
-              key={field}
-              style={styles.input}
-              placeholder={field}
-              value={config.state[field]}
-              onChangeText={(text) =>
+    return (
+      <View style={styles.modalContent}>
+        <ScrollView nestedScrollEnabled={true}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              Добавить {getEndpointTitle(config.endpoint)}
+            </Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalVisible(null)}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          {Object.entries(config.state).map(([field, value]) =>
+            field !== "image_url" &&
+            field !== "author" &&
+            field !== "second_tag" ? (
+              renderField(field, value, (text) =>
                 config.setState((prevState) => ({
                   ...prevState,
                   [field]: text,
                 }))
-              }
-              keyboardType={field === "price" ? "numeric" : "default"}
-            />
-          ) : null
-        )}
+              )
+            ) : null
+          )}
 
-        <View style={styles.imagePickerWrapper}>
-          {config.additionalRender ? config.additionalRender() : <Text>Нет доступных изображений</Text>}
-        </View>
-        {config.state.image_url ? (
-          <Image
-            source={{ uri: config.state.image_url }}
-            style={styles.previewImage}
-          />
-        ) : null}
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => handleAdd(config.state, config.endpoint, config.reset)}
-        >
-          <Text style={styles.buttonText}>Добавить</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setModalVisible(null)}
-        >
-          <Text style={styles.buttonText}>Назад</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
-  );
-};
+          <View style={styles.imageSection}>
+            {config.additionalRender()}
+          </View>
+
+          {config.state.image_url && (
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewTitle}>Предпросмотр</Text>
+              <Image
+                source={{ uri: `${URL_BASE}${config.state.image_url}` }}
+                style={styles.previewImage}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.disabledButton]}
+            onPress={() => handleAdd(config.state, config.endpoint, config.reset)}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="add-circle-outline" size={24} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.submitButtonText}>Добавить</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Admin Panel</Text>
+      <View style={styles.headerContainer}>
+        <Ionicons name="settings-outline" size={30} color="#007bff" />
+        <Text style={styles.header}>Панель управления</Text>
+      </View>
 
-      <Text style={styles.sectionTitle}>Главная страница</Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible("news")}
-      >
-        <Text style={styles.buttonText}>Добавить новость</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible("best")}
-      >
-        <Text style={styles.buttonText}>Добавить предложение</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible("analysis")}
-      >
-        <Text style={styles.buttonText}>Добавить анализ</Text>
-      </TouchableOpacity>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Главная страница</Text>
+        <View style={styles.buttonGroup}>
+          {[
+            { title: "Добавить новость", action: "news", icon: "newspaper-outline" },
+            { title: "Добавить предложение", action: "best", icon: "pricetag-outline" },
+            { title: "Добавить анализ", action: "analysis", icon: "analytics-outline" }
+          ].map((item) => (
+            <TouchableOpacity
+              key={item.action}
+              style={styles.button}
+              onPress={() => setModalVisible(item.action)}
+            >
+              <Ionicons name={item.icon} size={24} color="#fff" style={styles.buttonIcon} />
+              <Text style={styles.buttonText}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
-      <Text style={styles.sectionTitle}>Vessel Catcher</Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible("catcher")}
-      >
-        <Text style={styles.buttonText}>Добавить новость в Vessel Catcher</Text>
-      </TouchableOpacity>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Vessel Catcher</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => setModalVisible("catcher")}
+        >
+          <Ionicons name="boat-outline" size={24} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Добавить новость в Vessel Catcher</Text>
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.sectionTitle}>Offer и Request</Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible("offers")}
-      >
-        <Text style={styles.buttonText}>Добавить Offer</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible("requests")}
-      >
-        <Text style={styles.buttonText}>Добавить Request</Text>
-      </TouchableOpacity>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Предложения и запросы</Text>
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => setModalVisible("offers")}
+          >
+            <Ionicons name="cart-outline" size={24} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Добавить Offer</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => setModalVisible("requests")}
+          >
+            <Ionicons name="search-outline" size={24} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Добавить Request</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <Modal
         visible={!!modalVisible}
@@ -432,139 +586,201 @@ export default function AdminPanel() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f8f9fa",
     padding: 16,
-    backgroundColor: "#f9f9f9",
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    paddingVertical: 16,
   },
   header: {
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-    color: "#333",
+    color: "#007bff",
+    marginLeft: 10,
+  },
+  section: {
+    marginBottom: 24,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 10,
-    marginTop: 20,
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 16,
     textAlign: "center",
-    color: "#555",
+  },
+  buttonGroup: {
+    gap: 12,
   },
   button: {
     backgroundColor: "#007bff",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 50,
-    alignItems: "center",
-    marginBottom: 12,
-    alignSelf: "center",
-    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 3,
-    width: "80%",
+    elevation: 2,
   },
-  backButton: {
-    backgroundColor: "#dc3545",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 50,
-    alignItems: "center",
-    marginTop: 8,
-    alignSelf: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    width: "80%",
+  buttonIcon: {
+    marginRight: 8,
   },
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    width: "90%",
+    width: SCREEN_WIDTH * 0.9,
+    maxHeight: '90%',
     backgroundColor: "#fff",
+    borderRadius: 20,
     padding: 20,
-    borderRadius: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 5,
-    elevation: 4,
+    elevation: 5,
   },
   modalHeader: {
-    fontSize: 22,
-    fontWeight: "bold",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#333",
+  },
+  closeButton: {
+    padding: 8,
+  },
+  fieldContainer: {
     marginBottom: 16,
-    textAlign: "center",
-    color: "#007bff",
+  },
+  fieldLabel: {
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 8,
+    fontWeight: "500",
   },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
-    marginBottom: 16,
-    backgroundColor: "#fdfdfd",
-    width: "100%",
-    fontSize: 14,
-    color: "#555",
+    fontSize: 16,
+    backgroundColor: "#fff",
+    color: "#333",
   },
-  imageGridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-around",
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+  multilineInput: {
+    height: 100,
+    textAlignVertical: 'top',
   },
-  thumbnail: {
-    width: 65,
-    height: 70,
-    margin: 3,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-    borderWidth: 1,
-    borderColor: "#ddd",
+  imageSection: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  previewContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  previewTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
   },
   previewImage: {
-    width: 220,
-    height: 220,
-    marginVertical: 20,
+    width: 200,
+    height: 200,
     borderRadius: 16,
-    alignSelf: "center",
     backgroundColor: "#f5f5f5",
   },
-  authorPickerContainer: {
-    marginTop: 10,
+  submitButton: {
+    backgroundColor: "#28a745",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 20,
   },
-  authorButton: {
-    padding: 10,
-    backgroundColor: "#84cdfa",
-    marginVertical: 7,
-    borderRadius: 5,
-  },
-  authorButtonText: {
+  submitButtonText: {
     color: "#fff",
-    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
   },
-  categoryPickerContainer: {
-    marginTop: 10,
+  disabledButton: {
+    opacity: 0.7,
   },
-  categoryTitle: {
+  imageSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#28a745',
+    padding: 8,
+    borderRadius: 8,
+    gap: 8,
+  },
+  uploadButtonText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: '500',
+  },
+  imageGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 4,
+  },
+  thumbnailContainer: {
+    margin: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  thumbnail: {
+    width: (SCREEN_WIDTH * 0.9 - 64) / 4,
+    height: (SCREEN_WIDTH * 0.9 - 64) / 4,
+    backgroundColor: '#f5f5f5',
+  },
+  pickerContainer: {
+    marginBottom: 16,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    color: "#333",
     marginBottom: 8,
-    color: "#555",
+    fontWeight: "500",
   },
 });

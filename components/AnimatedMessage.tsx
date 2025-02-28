@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
   interpolate,
 } from 'react-native-reanimated';
-import { Card } from './ui/Card';
+import { Card, CardContent } from './ui/Card';
 import { theme } from '../constants/theme';
 
 interface AnimatedMessageProps {
@@ -41,7 +41,7 @@ export const AnimatedMessage: React.FC<AnimatedMessageProps> = ({
         stiffness: 150,
       });
       opacity.value = withTiming(1, { duration: 300 });
-      scale.value = withSpring(1, {
+      scale.value = withSpring(1, { 
         damping: 15,
         stiffness: 150,
       });
@@ -103,7 +103,7 @@ export const AnimatedMessage: React.FC<AnimatedMessageProps> = ({
             : theme.colors.background.default
         }
       >
-        <Card.Content>
+        <CardContent>
           {children}
           <View style={styles.footer}>
             {timestamp && (
@@ -116,7 +116,7 @@ export const AnimatedMessage: React.FC<AnimatedMessageProps> = ({
             )}
             {sender === 'user' && getStatusIcon()}
           </View>
-        </Card.Content>
+        </CardContent>
       </Card>
     </Animated.View>
   );
