@@ -4,21 +4,29 @@ from schemas import (NewsItem, AnalysisItem, BestItem,
                      CatcherItem, VesselItem, CargoItem,
                        OffersItem, RequestsItem)
 from fastapi import  HTTPException
+from utils import normalize_image_path
 
 def get_news(db: Session, skip: int = 0, limit: int = 10):
     """
     Получение новостей.
     """
-    return db.query(News).order_by(News.date.desc()).offset(skip).limit(limit).all()
+    news_items = db.query(News).order_by(News.date.desc()).offset(skip).limit(limit).all()
+    # Нормализуем пути к изображениям
+    for item in news_items:
+        item.image_url = normalize_image_path(item.image_url)
+    return news_items
 
 def create_news(db: Session, news_item: NewsItem):
     """
     Добавление новости.
     """
+    # Нормализуем путь к изображению
+    image_url = normalize_image_path(news_item.image_url)
+    
     db_news = News(
         title=news_item.title,
         content=news_item.content,
-        image_url=news_item.image_url
+        image_url=image_url
     )
     db.add(db_news)
     db.commit()
@@ -29,16 +37,23 @@ def get_analysis(db: Session, skip: int = 0, limit: int = 10):
     """
     Получение анализа.
     """
-    return db.query(Analysis).order_by(Analysis.date.desc()).offset(skip).limit(limit).all()
+    analysis_items = db.query(Analysis).order_by(Analysis.date.desc()).offset(skip).limit(limit).all()
+    # Нормализуем пути к изображениям
+    for item in analysis_items:
+        item.image_url = normalize_image_path(item.image_url)
+    return analysis_items
 
 def create_analysis(db: Session, analysis_item: AnalysisItem):
     """
     Добавление анализа.
     """
+    # Нормализуем путь к изображению
+    image_url = normalize_image_path(analysis_item.image_url)
+    
     db_analysis = Analysis(
         title=analysis_item.title,
         content=analysis_item.content,
-        image_url=analysis_item.image_url
+        image_url=image_url
     )
     db.add(db_analysis)
     db.commit()
@@ -49,17 +64,24 @@ def get_best(db: Session, skip: int = 0, limit: int = 10):
     """
     Получение лучших предложений.
     """
-    return db.query(Best).order_by(Best.date.desc()).offset(skip).limit(limit).all()
+    best_items = db.query(Best).order_by(Best.date.desc()).offset(skip).limit(limit).all()
+    # Нормализуем пути к изображениям
+    for item in best_items:
+        item.image_url = normalize_image_path(item.image_url)
+    return best_items
 
 def create_best(db: Session, best_item: BestItem):
     """
     Добавление предложения.
     """
+    # Нормализуем путь к изображению
+    image_url = normalize_image_path(best_item.image_url)
+    
     db_best = Best(
         title=best_item.title,
         description=best_item.description,
         price=best_item.price,
-        image_url=best_item.image_url,
+        image_url=image_url,
         author=best_item.author,
         
     )
@@ -74,10 +96,13 @@ def create_catcher(db: Session, catcher: CatcherItem):
     Создание ловца новостей.
     """
     print("Data received in create_catcher:", catcher.dict())
+    # Нормализуем путь к изображению
+    image_url = normalize_image_path(catcher.image_url)
+    
     db_news = Catcher(
         title=catcher.title,
         description=catcher.description,
-        image_url=catcher.image_url)
+        image_url=image_url)
     db.add(db_news)
     db.commit()
     db.refresh(db_news)
@@ -123,37 +148,44 @@ def create_cargo(db: Session, cargo: CargoItem):
 
 def get_catcher(db: Session, skip: int = 0, limit: int = 10):
     """
-    Получение ловцов новостей.
+    Получение ловца новостей.
     """
-    return db.query(Catcher).order_by(Catcher.date.desc()).offset(skip).limit(limit).all()
+    catcher_items = db.query(Catcher).order_by(Catcher.date.desc()).offset(skip).limit(limit).all()
+    # Нормализуем пути к изображениям
+    for item in catcher_items:
+        item.image_url = normalize_image_path(item.image_url)
+    return catcher_items
 
 def get_vessel(db: Session, skip: int = 0, limit: int = 10):
     """
     Получение судов.
     """
-    return db.query(Vessel).order_by(Vessel.date.desc()).offset(skip).limit(limit).all()
+    return db.query(Vessel).filter(Vessel.status == "approved").order_by(Vessel.date.desc()).offset(skip).limit(limit).all()
 
 def get_cargo(db: Session, skip: int = 0, limit: int = 10):
     """
     Получение грузов.
     """
-    return db.query(Cargo).order_by(Cargo.date.desc()).offset(skip).limit(limit).all()
+    return db.query(Cargo).filter(Cargo.status == "approved").order_by(Cargo.date.desc()).offset(skip).limit(limit).all()
 
 def create_offers(db: Session, offers: OffersItem):
     """
     Добавление предложения.
     """
+    # Нормализуем путь к изображению
+    image_url = normalize_image_path(offers.image_url)
+    
     db_offers = Offers(
-        crop_name=offers.crop_name or "",
-        quantity=offers.quantity or "",
-        port=offers.port or "",
-        shipment_period=offers.shipment_period or "",
-        seller=offers.seller or "",
-        bayer=offers.bayer or "",
-        second_tag=offers.second_tag or "",
-        country=offers.country or "",
-        author=offers.author or "",
-        image_url=offers.image_url or ""
+        crop_name=offers.crop_name,
+        quantity=offers.quantity,
+        port=offers.port,
+        shipment_period=offers.shipment_period,
+        seller=offers.seller,
+        bayer=offers.bayer,
+        second_tag=offers.second_tag,
+        country=offers.country,
+        author=offers.author,
+        image_url=image_url
     )
     db.add(db_offers)
     db.commit()
@@ -164,7 +196,11 @@ def create_requests(db: Session, requests: RequestsItem):
     """
     Добавление запроса.
     """
-    db_requests = Requests(crop_name=requests.crop_name,
+    # Нормализуем путь к изображению
+    image_url = normalize_image_path(requests.image_url)
+    
+    db_requests = Requests(
+        crop_name=requests.crop_name,
         quantity=requests.quantity,
         port=requests.port,
         shipment_period=requests.shipment_period,
@@ -173,7 +209,8 @@ def create_requests(db: Session, requests: RequestsItem):
         second_tag=requests.second_tag,
         country=requests.country,
         author=requests.author,
-        image_url=requests.image_url)
+        image_url=image_url
+    )
     db.add(db_requests)
     db.commit()
     db.refresh(db_requests)
@@ -183,24 +220,34 @@ def get_offers(db: Session, skip: int = 0):
     """
     Получение предложений.
     """
-    return db.query(Offers).order_by(Offers.date.desc()).offset(skip).all()
+    offers_items = db.query(Offers).order_by(Offers.date.desc()).offset(skip).all()
+    # Нормализуем пути к изображениям
+    for item in offers_items:
+        item.image_url = normalize_image_path(item.image_url)
+    return offers_items
 
 def get_requests(db: Session, skip: int = 0):
     """
     Получение запросов.
     """
-    return db.query(Requests).order_by(Requests.date.desc()).offset(skip).all()
+    requests_items = db.query(Requests).order_by(Requests.date.desc()).offset(skip).all()
+    # Нормализуем пути к изображениям
+    for item in requests_items:
+        item.image_url = normalize_image_path(item.image_url)
+    return requests_items
 
-
-# Получить предложения со статусом 'pending' (для Vessel и Cargo)
+# Получение записей, ожидающих подтверждения
 def get_pending_vessel(db: Session, skip: int = 0, limit: int = 10):
+    """Получение судов, ожидающих подтверждения"""
     return db.query(Vessel).filter(Vessel.status == "pending").offset(skip).limit(limit).all()
 
 def get_pending_cargo(db: Session, skip: int = 0, limit: int = 10):
+    """Получение грузов, ожидающих подтверждения"""
     return db.query(Cargo).filter(Cargo.status == "pending").offset(skip).limit(limit).all()
 
 # Обновление статуса Vessel
 def update_vessel_status(db: Session, vessel_id: int, new_status: str):
+    """Обновление статуса судна"""
     vessel = db.query(Vessel).filter(Vessel.id == vessel_id).first()
     if vessel:
         vessel.status = new_status
@@ -211,6 +258,7 @@ def update_vessel_status(db: Session, vessel_id: int, new_status: str):
 
 # Обновление статуса Cargo
 def update_cargo_status(db: Session, cargo_id: int, new_status: str):
+    """Обновление статуса груза"""
     cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
     if cargo:
         cargo.status = new_status

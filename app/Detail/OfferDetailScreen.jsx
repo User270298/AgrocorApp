@@ -13,7 +13,7 @@ import {
 import { useRoute } from "@react-navigation/native";
 import { Ionicons } from '@expo/vector-icons';
 // import { URL_BASE } from '@env';
-const URL_BASE = "http://192.168.1.103:8000";
+const URL_BASE = "http://192.168.121.164:8000";
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function OfferDetailScreen() {
@@ -271,9 +271,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
+    paddingBottom: 10,
     borderRadius: 12,
     marginTop: 10,
-    marginBottom: 20,
+    marginBottom: 80,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

@@ -57,32 +57,3 @@ async def fetch_quotes():
     except Exception as e:
         return {"error": str(e)}
     
-BASE_IMAGE_DIR = Path("C:/Users/parkw/Desktop/Work/my-app/assets/images")
-IMAGE_CATEGORIES = {
-    "image": BASE_IMAGE_DIR / "image",
-    "news_image": BASE_IMAGE_DIR / "news_image",
-    "vessel_image": BASE_IMAGE_DIR / "vessel_image",
-    "analysis_image": BASE_IMAGE_DIR / "analysis_image",
-}
-
-@router.get("/api/images")
-async def get_images(category: str = Query(..., enum=IMAGE_CATEGORIES.keys())) -> dict:
-    try:
-        # Исправление на случай неправильного параметра
-        if category == "news":
-            category = "news_image"  # Перенаправление на правильную категорию
-
-        image_dir = IMAGE_CATEGORIES[category]
-        print(f"Accessing directory: {image_dir}")  # Лог пути к директории
-
-        if not image_dir.exists():
-            print(f"Directory not found: {image_dir}")  # Лог отсутствия директории
-            raise HTTPException(status_code=404, detail=f"Directory for {category} not found")
-
-        files = [f"/static/{category}/{file.name}" for file in image_dir.iterdir() if file.is_file()]
-        print(f"Files found: {files}")  # Лог найденных файлов
-
-        return {"images": files}
-    except Exception as e:
-        print(f"Error processing category '{category}': {e}")  # Лог ошибки
-        raise HTTPException(status_code=500, detail=f"Error fetching images: {e}")

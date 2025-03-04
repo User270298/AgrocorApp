@@ -15,7 +15,7 @@ import { theme } from "../../theme";
 // import { URL_BASE } from '@env';  
 
 // const URL_BASE=URL_BASE
-const URL_BASE = "http://192.168.1.103:8000";
+const URL_BASE = "http://192.168.121.164:8000";
 export const fetchOffers = async () => {
   try {
     const response = await axios.get(`${URL_BASE}/offers`);

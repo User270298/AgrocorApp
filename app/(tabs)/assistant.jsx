@@ -8,7 +8,7 @@ import { AnimatedMessage } from '../../components/AnimatedMessage';
 import { useMessages } from '../../hooks/useMessages';
 import { theme } from '../../constants/theme';
 
-const URL_BASE = "http://192.168.1.103:8000";
+const URL_BASE = "http://192.168.121.164:8000";
 
 export default function Assistant() {
   const [input, setInput] = React.useState('');

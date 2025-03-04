@@ -237,5 +237,3 @@ class RequestsAddItem(BaseModel):
     country: str
     author: str
     image_url: str
-
-

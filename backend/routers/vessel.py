@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from crud import  (create_vessel, create_cargo, get_vessel, get_cargo, create_catcher, get_catcher,
         create_vessel, create_cargo, get_vessel, get_cargo, get_pending_vessel, 
         get_pending_cargo, update_vessel_status, update_cargo_status)
-from schemas import CatcherAddItem, VesselAddItem, CargoAddItem, CatcherItem
+from schemas import CatcherAddItem, VesselAddItem, CargoAddItem, CatcherItem, VesselItem, CargoItem
 from database import get_db
 
 
@@ -45,38 +45,57 @@ def add_vessel(vessel: VesselAddItem, db: Session = Depends(get_db)):
     return create_vessel(db=db, vessel=vessel)
 
 
+@router.get("/pending_vessels")
+def get_pending_vessels(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    """Получение списка судов, ожидающих подтверждения"""
+    return get_pending_vessel(db, skip=skip, limit=limit)
 
 
+@router.get("/pending_cargo")
+def get_pending_cargos(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    """Получение списка грузов, ожидающих подтверждения"""
+    return get_pending_cargo(db, skip=skip, limit=limit)
 
 
+@router.post("/approve_vessel/{vessel_id}", response_model=VesselItem)
+def approve_vessel_endpoint(vessel_id: int, db: Session = Depends(get_db)):
+    """Подтверждение записи о судне"""
+    try:
+        return update_vessel_status(db, vessel_id, "approved")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при подтверждении судна: {str(e)}")
 
-# router = APIRouter()
 
-# # Получить предложения со статусом 'pending'
-# @router.get("/pending/vessel")
-# def get_pending_vessel_items(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-#     return get_pending_vessel(db, skip=skip, limit=limit)
+@router.post("/reject_vessel/{vessel_id}", response_model=VesselItem)
+def reject_vessel_endpoint(vessel_id: int, db: Session = Depends(get_db)):
+    """Отклонение записи о судне"""
+    try:
+        return update_vessel_status(db, vessel_id, "rejected")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при отклонении судна: {str(e)}")
 
-# @router.get("/pending/cargo")
-# def get_pending_cargo_items(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-#     return get_pending_cargo(db, skip=skip, limit=limit)
 
-# # Подтвердить статус предложения (Vessel)
-# @router.post("/vessel/approve/{id}")
-# def approve_vessel(id: int, db: Session = Depends(get_db)):
-#     return update_vessel_status(db, id, "approved")
+@router.post("/approve_cargo/{cargo_id}", response_model=CargoItem)
+def approve_cargo_endpoint(cargo_id: int, db: Session = Depends(get_db)):
+    """Подтверждение записи о грузе"""
+    try:
+        return update_cargo_status(db, cargo_id, "approved")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при подтверждении груза: {str(e)}")
 
-# # Отклонить статус предложения (Vessel)
-# @router.post("/vessel/reject/{id}")
-# def reject_vessel(id: int, db: Session = Depends(get_db)):
-#     return update_vessel_status(db, id, "cancel")
 
-# # Подтвердить статус предложения (Cargo)
-# @router.post("/cargo/approve/{id}")
-# def approve_cargo(id: int, db: Session = Depends(get_db)):
-#     return update_cargo_status(db, id, "approved")
-
-# # Отклонить статус предложения (Cargo)
-# @router.post("/cargo/reject/{id}")
-# def reject_cargo(id: int, db: Session = Depends(get_db)):
-#     return update_cargo_status(db, id, "cancel")
+@router.post("/reject_cargo/{cargo_id}", response_model=CargoItem)
+def reject_cargo_endpoint(cargo_id: int, db: Session = Depends(get_db)):
+    """Отклонение записи о грузе"""
+    try:
+        return update_cargo_status(db, cargo_id, "rejected")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при отклонении груза: {str(e)}")

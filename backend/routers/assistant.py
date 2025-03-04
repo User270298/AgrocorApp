@@ -63,6 +63,3 @@ async def handle_question(question: Question):
     # Get response from OpenAI
     response = await ask_openai(user_input)
     return {"response": response}
-
-
-

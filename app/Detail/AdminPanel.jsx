@@ -20,14 +20,23 @@ import * as FileSystem from 'expo-file-system';
 // import { URL_BASE } from "@env";
 const URL_BASE = "http://192.168.1.103:8000";
 import { Picker } from "@react-native-picker/picker";
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+
+import HomeTab from './components/AdminTabs/HomeTab';
+import NewsTab from './components/AdminTabs/NewsTab';
+import VesselCatcherTab from './components/AdminTabs/VesselCatcherTab';
+import FormModal from './components/FormModal';
 
 console.log("Base URL:", URL_BASE);
 
 // const URL_BASE = "http://192.168.1.104:8000";
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const Tab = createMaterialTopTabNavigator();
+
 export default function AdminPanel() {
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState(null);
   const [loading, setLoading] = useState(false);
   const [news, setNews] = useState({ title: "", content: "", image_url: "" });
   const [best, setBest] = useState({
@@ -449,7 +458,7 @@ export default function AdminPanel() {
       },
     };
 
-    const config = modalConfig[modalVisible];
+    const config = modalConfig[modalType];
     if (!config) return null;
 
     return (
@@ -461,7 +470,7 @@ export default function AdminPanel() {
             </Text>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => setModalVisible(null)}
+              onPress={() => setModalVisible(false)}
             >
               <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
@@ -513,73 +522,56 @@ export default function AdminPanel() {
     );
   };
 
+  const handleActionPress = (type) => {
+    setModalType(type);
+    setModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setModalType(null);
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Ionicons name="settings-outline" size={30} color="#007bff" />
-        <Text style={styles.header}>Панель управления</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Главная страница</Text>
-        <View style={styles.buttonGroup}>
-          {[
-            { title: "Добавить новость", action: "news", icon: "newspaper-outline" },
-            { title: "Добавить предложение", action: "best", icon: "pricetag-outline" },
-            { title: "Добавить анализ", action: "analysis", icon: "analytics-outline" }
-          ].map((item) => (
-            <TouchableOpacity
-              key={item.action}
-              style={styles.button}
-              onPress={() => setModalVisible(item.action)}
-            >
-              <Ionicons name={item.icon} size={24} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Vessel Catcher</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => setModalVisible("catcher")}
-        >
-          <Ionicons name="boat-outline" size={24} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Добавить новость в Vessel Catcher</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Предложения и запросы</Text>
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => setModalVisible("offers")}
-          >
-            <Ionicons name="cart-outline" size={24} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>Добавить Offer</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => setModalVisible("requests")}
-          >
-            <Ionicons name="search-outline" size={24} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>Добавить Request</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <Modal
-        visible={!!modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(null)}
+    <View style={styles.container}>
+      <Tab.Navigator
+        screenOptions={{
+          tabBarStyle: styles.tabBar,
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarIndicatorStyle: styles.tabIndicator,
+          tabBarActiveTintColor: '#007bff',
+          tabBarInactiveTintColor: '#666',
+        }}
       >
-        <View style={styles.modalOverlay}>{renderModalContent()}</View>
-      </Modal>
-    </ScrollView>
+        <Tab.Screen
+          name="Home"
+          options={{ title: 'Главная' }}
+        >
+          {() => <HomeTab onActionPress={handleActionPress} />}
+        </Tab.Screen>
+        
+        <Tab.Screen
+          name="News"
+          options={{ title: 'Новости' }}
+          component={NewsTab}
+        />
+        
+        <Tab.Screen
+          name="VesselCatcher"
+          options={{ title: 'Vessel Catcher' }}
+        >
+          {() => <VesselCatcherTab onActionPress={handleActionPress} />}
+        </Tab.Screen>
+      </Tab.Navigator>
+
+      <FormModal
+        visible={modalVisible}
+        type={modalType}
+        onClose={handleCloseModal}
+      >
+        {renderModalContent()}
+      </FormModal>
+    </View>
   );
 }
 
@@ -782,5 +774,22 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 8,
     fontWeight: "500",
+  },
+  tabBar: {
+    backgroundColor: '#fff',
+    elevation: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  tabLabel: {
+    textTransform: 'none',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  tabIndicator: {
+    backgroundColor: '#007bff',
+    height: 3,
   },
 });

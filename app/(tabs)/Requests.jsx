@@ -13,7 +13,7 @@ import { CategorySelector } from "../../components/CategorySelector";
 import { CropDetailCard } from "../../components/CropDetailCard";
 import { theme } from "../../theme";
 
-const URL_BASE = "http://192.168.1.103:8000";
+const URL_BASE = "http://192.168.121.164:8000";
 
 const fetchRequests = async () => {
   try {

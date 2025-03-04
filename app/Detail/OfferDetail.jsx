@@ -1,10 +1,10 @@
-// app/components/NewsDetail.js
+  // app/components/NewsDetail.js
 import React from "react";
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Linking, SafeAreaView } from "react-native";
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 // import { URL_BASE } from '@env';
-const URL_BASE = "http://192.168.1.105:8000";
+const URL_BASE = "http://192.168.121.164:8000";
 
 export default function NewsDetail() {
   const route = useRoute(); // Получаем текущий маршрут

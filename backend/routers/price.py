@@ -1,51 +1,88 @@
-import yfinance as yf
 from bs4 import BeautifulSoup
 import requests
 
-# Тикеры для биткоина, валютных пар и нефти
-tickers = {
-    'Bitcoin': 'BTC-USD',
-    'USD/RUB': 'USDRUB=X',
-    'EUR/RUB': 'EURRUB=X',
-    'Brent Crude Oil': 'BZ=F',
-    'USD/CNY': 'CNY=X',
-    'USD/TRY': 'TRY=X',
-}
 
-# Период для запроса данных (например, 5 дней)
-period = "5d"
-
-
-# Функция для получения цен
 def get_prices():
+    """
+    Функция для получения цен с указанных URL.
+    Возвращает словарь с ценами, округленными до одной десятой, или пустую строку в случае ошибки.
+    """
     try:
+        # Список URL и соответствующих им названий
+        urls = [
+            ('USD/RUB', 'https://ru.investing.com/currencies/usd-rub-exchange-rate-cash-futures'),
+            ('EUR/RUB', 'https://ru.investing.com/currencies/eur-rub'),
+            ('Brent Crude Oil', 'https://ru.investing.com/etfs/etfs-brent-crude'),
+            ('USD/CNY', 'https://ru.investing.com/currencies/usd-cny'),
+            ('USD/TRY', 'https://ru.investing.com/currencies/usd-try')
+        ]
+
+        # Заголовки для запросов
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36'
+        }
+
+        # Словарь для хранения цен
         prices = {}
 
-        for name, ticker in tickers.items():
-            # Создаем объект тикера
-            stock = yf.Ticker(ticker)
-
-            # Получаем исторические данные
-            data = stock.history(period=period)
-
-            # Проверяем, что DataFrame не пустой и содержит хотя бы одну строку данных
-            if not data.empty and len(data) > 0:
-                # Получаем последнюю цену закрытия
-                last_price = data['Close'].iloc[-1]
-                # Округляем значение и добавляем в словарь
-                if name == 'Bitcoin':
-                    prices['btc_price'] = round(last_price, 1)
-                elif name == 'Brent Crude Oil':
-                    prices['oil_price'] = round(last_price, 2)
+        # Перебор URL и получение цен
+        for name, url in urls:
+            try:
+                # Отправка GET-запроса
+                response = requests.get(url, headers=headers)
+                if response.status_code == 200:
+                    # Парсинг HTML-страницы
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    # Поиск цены
+                    price_element = soup.find('div', class_='text-5xl/9 font-bold text-[#232526] md:text-[42px] md:leading-[60px]')
+                    if price_element:
+                        # Очистка и преобразование цены
+                        price_text = price_element.text.strip()
+                        if name == 'USD/RUB':
+                            price_text = price_text.replace(',', '').replace(',', '.')
+                        else:
+                            price_text = price_text.replace('.', '').replace(',', '.')
+                        
+                        # Преобразование в число и округление до одной десятой
+                        price = round(float(price_text), 1)
+                        prices[name] = price
+                    else:
+                        print(f"Цена не найдена на странице: {url}")
+                        prices[name] = 'N/A'
                 else:
-                    # Добавляем другие валюты
-                    prices[name.lower().replace('/', '_')] = round(last_price, 4)
+                    print(f"Ошибка: {response.status_code} для {url}")
+                    prices[name] = 'N/A'
+            except Exception as e:
+                print(f"Ошибка при обработке {url}: {e}")
+                prices[name] = 'N/A'
+
+        # Обработка Bitcoin
+        url = ('Bitcoin', 'https://coinmarketcap.com/currencies/bitcoin/')
+        response = requests.get(url[1], headers=headers)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            price_element = soup.find('span', class_='sc-65e7f566-0 WXGwg base-text')
+            if price_element:
+                # Очистка и преобразование цены
+                price_text = price_element.text.replace('$', '').replace(',', '')
+                # Преобразование в число и округление до одной десятой
+                price = round(float(price_text), 1)
+                prices[url[0]] = price
             else:
-                prices[name] = None  # Если данных нет, присваиваем None
+                print(f"Цена не найдена на странице: {url[1]}")
+                prices[url[0]] = 'N/A'
+        else:
+            print(f"Ошибка: {response.status_code} для {url[1]}")
+            prices[url[0]] = 'N/A'
 
         return prices
+
     except Exception as e:
-        return ''
+        print(f"Общая ошибка: {e}")
+        return {}
+
+
+print(get_prices())
 
 
 # Вызов функции для получения цен
@@ -167,7 +204,9 @@ def get_matif():
     except Exception as e:
         return ''
 
+
 import numpy as np
+
 
 def convert_numpy_to_native(data):
     if isinstance(data, np.ndarray):
@@ -178,7 +217,7 @@ def convert_numpy_to_native(data):
         return {key: convert_numpy_to_native(value) for key, value in data.items()}
     elif isinstance(data, list):
         return [convert_numpy_to_native(value) for value in data]
-    
+
     return data
 
 # print(get_prices())
